@@ -1,4 +1,5 @@
 import pandas as pd
+from functools import lru_cache
 
 @lru_cache(10_000)
 def convert_to_pandas_period(date, freq):

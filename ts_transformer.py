@@ -1,14 +1,54 @@
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Dict
 
 import matplotlib.pyplot as plt
-
 import torch
 import torch.nn as nn
+from torch.optim import AdamW
 import pandas as pd
 import os
 import datetime
 import numpy as np
 from sklearn.model_selection import train_test_split
+
+from transformers import (
+    PretrainedConfig,
+    TimeSeriesTransformerConfig,
+    TimeSeriesTransformerForPrediction
+)
+
+from accelerate import Accelerator
+
+from transformers import TimeSeriesTransformerConfig, TimeSeriesTransformerForPrediction
+from gluonts.transform import Transformation
+from gluonts.transform.sampler import InstanceSampler
+from datasets import Dataset
+from functools import partial
+from gluonts.dataset.field_names import FieldName
+from gluonts.itertools import Cached, Cyclic
+from gluonts.dataset.loader import as_stacked_batches
+
+from gluonts.time_feature import (
+    get_lags_for_frequency, 
+    time_features_from_frequency_str,
+    TimeFeature
+)
+from gluonts.transform import (
+    AddAgeFeature,
+    AddObservedValuesIndicator,
+    AddTimeFeatures,
+    AsNumpyArray,
+    Chain,
+    ExpectedNumInstanceSampler,
+    InstanceSplitter,
+    RemoveFields,
+    TestSplitSampler,
+    Transformation,
+    ValidationSplitSampler,
+    VstackFeatures,
+    RenameFields,
+)
+
+from .utils import transform_start_field
 
 
 def create_transformation(freq: str, config: PretrainedConfig) -> Transformation:
@@ -268,16 +308,14 @@ def create_backtest_dataloader(
         field_names=PREDICTION_INPUT_NAMES,
     )
 
-
 def setup_training(
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,
     freq: str,
-    prediction_length: int,
     batch_size: int = 32,
     num_batches_per_epoch: int = 16,
     nb_lags: Optional[int] = None,
-    tranformer_config: Optionnal[Union[TimeSeriesTransformerConfig, Dict]] = None,
+    transformer_config: Optional[Dict] = {},
 ):
     train_data = Dataset.from_pandas(train_df, preserve_index=False)
     train_data.set_transform(partial(transform_start_field, freq=freq))
@@ -290,12 +328,8 @@ def setup_training(
         lags_sequence = lags_sequence[:nb_lags]
     time_features = time_features_from_frequency_str(freq)
     
-    if isinstance(tranformer_config, TimeSeriesTransformerConfig):
-        #TODO see if is of type Dict
-        config = tranformer_config
-    elif isinstance(tranformer_config, Dict):
-        config = TimeSeriesTransformerConfig(**tranformer_config)
-
+    transformer_config['num_time_features'] = len(time_features) + 1
+    config = TimeSeriesTransformerConfig(**transformer_config)
     transformer = TimeSeriesTransformerForPrediction(config)
 
     train_dataloader = create_train_dataloader(
@@ -311,12 +345,13 @@ def setup_training(
     data=test_data,
     batch_size=16)
 
-return transformer, train_dataloader, test_dataloader
+    return transformer, train_dataloader, test_dataloader
 
 def train(
     transformer,
     train_dataloader,
-    optimizer: Otional[torch.optim] = None,
+    epochs: int,
+    optimizer: Optional[torch.optim.Optimizer] = None,
 ):
     accelerator = Accelerator()
     device = accelerator.device
@@ -334,16 +369,16 @@ def train(
 
     transformer.train()
     list_loss = []
-    for epoch in range(200):
+    for epoch in range(epochs):
         total_loss = 0
         for idx, batch in enumerate(train_dataloader):
             optimizer.zero_grad()
             outputs = transformer(
                 static_categorical_features=batch["static_categorical_features"].to(device)
-                if config.num_static_categorical_features > 0
+                if transformer.config.num_static_categorical_features > 0
                 else None,
                 static_real_features=batch["static_real_features"].to(device)
-                if config.num_static_real_features > 0
+                if transformer.config.num_static_real_features > 0
                 else None,
                 past_time_features=batch["past_time_features"].to(device),
                 past_values=batch["past_values"].to(device),
@@ -362,23 +397,25 @@ def train(
             optimizer.step()
         list_loss.append(total_loss)
 
-    return transformer
+    return transformer, list_loss
 
 def test(
     transformer,
     test_dataloader,
 ):
-
+    accelerator = Accelerator()
+    device = accelerator.device
+    transformer.to(device)
     transformer.eval()
     forecasts = []
 
     for batch in test_dataloader:
         outputs = transformer.generate(
             static_categorical_features=batch["static_categorical_features"].to(device)
-            if config.num_static_categorical_features > 0
+            if transformer.config.num_static_categorical_features > 0
             else None,
             static_real_features=batch["static_real_features"].to(device)
-            if config.num_static_real_features > 0
+            if transformer.config.num_static_real_features > 0
             else None,
             past_time_features=batch["past_time_features"].to(device),
             past_values=batch["past_values"].to(device),
