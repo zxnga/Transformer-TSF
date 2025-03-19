@@ -17,6 +17,7 @@ from transformers import (
 )
 
 from accelerate import Accelerator
+from evaluate import load
 
 from transformers import TimeSeriesTransformerConfig, TimeSeriesTransformerForPrediction
 from gluonts.transform import Transformation
@@ -30,8 +31,10 @@ from gluonts.dataset.loader import as_stacked_batches
 from gluonts.time_feature import (
     get_lags_for_frequency, 
     time_features_from_frequency_str,
-    TimeFeature
+    TimeFeature,
+    get_seasonality
 )
+
 from gluonts.transform import (
     AddAgeFeature,
     AddObservedValuesIndicator,
@@ -345,7 +348,7 @@ def setup_training(
     data=test_data,
     batch_size=16)
 
-    return transformer, train_dataloader, test_dataloader
+    return transformer, train_dataloader, test_dataloader, test_data
 
 def train(
     transformer,
@@ -425,3 +428,30 @@ def test(
         forecasts.append(outputs.sequences.cpu().numpy())
     
     return np.vstack(forecasts)
+
+
+def evaluate(test_data, forecasts, prediction_length, freq):
+    mase_metric = load("evaluate-metric/mase")
+    smape_metric = load("evaluate-metric/smape")
+
+    forecast_median = np.median(forecasts, 1)
+
+    mase_metrics_transformer = []
+    smape_metrics_transformer = []
+    for item_id, ts in enumerate(test_data):
+        training_data = ts["target"][:-prediction_length]
+        ground_truth = ts["target"][-prediction_length:]
+        mase = mase_metric.compute(
+            predictions=forecast_median[item_id],
+            references=np.array(ground_truth),
+            training=np.array(training_data),
+            periodicity=get_seasonality(freq))
+        mase_metrics_transformer.append(mase["mase"])
+        
+        smape = smape_metric.compute(
+            predictions=forecast_median[item_id], 
+            references=np.array(ground_truth), 
+        )
+        smape_metrics_transformer.append(smape["smape"])
+    
+    return mase_metrics_transformer, smape_metrics_transformer
