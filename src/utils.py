@@ -26,3 +26,13 @@ def create_test_dataset(df, len_chunks):
     final_df = pd.concat(to_add, axis=0).reset_index(drop=True)
     final_df['item_id'] = ['T'+str(i+1) for i in range(len(final_df))]
     return final_df
+
+def scale_series(series, global_min, global_max):
+    return (series - global_min) / (global_max - global_min)
+
+def create_sequences(data, input_sequence_length, output_sequence_length):
+    X, y = [], []
+    for i in range(len(data) - input_sequence_length - output_sequence_length + 1):
+        X.append(data[i:(i + input_sequence_length)])
+        y.append(data[(i + input_sequence_length):(i + input_sequence_length + output_sequence_length)])
+    return np.array(X), np.array(y)
