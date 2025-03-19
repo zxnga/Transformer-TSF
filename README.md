@@ -58,5 +58,5 @@ To train and evaluate the TimeSeriesTransformer model:
 ## Files Description
 
 - `ts_transformer.py`: Contains the implementation of the functions to train the TimeSeriesTransformer model.
-- `plotting.py`: Includes functions for visualizing the results, such as loss curves and predictions.
+- `plotting.py`: Includes functions for visualizing the results.
 - `utils.py`: Utility functions for data preprocessing, loading, and other helper methods.
