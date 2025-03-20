@@ -38,7 +38,7 @@ COLS_INFER_DF = [
 
 class BufferValues(NamedTuple):
     context: np.ndarray
-    start: datetime
+    start: datetime.datetime
     feat_static_cat: List[int]
     feat_static_real: List[float]
     feat_dynamic_real: np.ndarray
@@ -60,12 +60,12 @@ class TSBuffer:
         self.num_dynamic_real_features = num_dynamic_real_features
         self.timedelta = timedelta
 
-        self.context = np.zeros((context_length))
+        self.context = np.zeros((context_length), dtype=np.float32)
         self.start = None
         self.static_cat_features = np.zeros(num_static_cat_features)
-        self.static_real_features = np.zeros(num_static_real_features)
+        self.static_real_features = np.zeros((num_static_real_features), dtype=np.float32)
         self.dynamic_real_features = np.zeros(
-            (num_dynamic_real_features,context_length))
+            (num_dynamic_real_features,context_length), dtype=np.float32)
 
     def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
         # dynamic_real_features is of size (num_dynamic_real_features,)
@@ -74,7 +74,7 @@ class TSBuffer:
         if self.num_dynamic_real_features > 0:
             self.dynamic_real_features = np.roll(self.dynamic_real_features, -1)
             self.dynamic_real_features[-1] = dynamic_real_features
-        self.start = self.start + timedelta(**timedelta)
+        self.start = self.start + datetime.timedelta(**self.timedelta)
 
     def get_values(self):
         data = (
@@ -89,7 +89,7 @@ class TSBuffer:
     def initialize_buffer(
         self,
         context: np.ndarray,
-        start: datetime,
+        start: datetime.datetime,
         static_cat_features: Optional[np.ndarray]=None,
         static_real_features: Optional[np.ndarray]=None,
         dynamic_real_features: Optional[np.ndarray]=None,
@@ -227,17 +227,23 @@ class InferenceHelper:
     def initialize_buffer(
         self,
         context: np.ndarray,
-        start: datetime,
+        start: datetime.datetime,
         static_cat_features: Optional[List[int]]=None,
         static_real_features: Optional[List[float]]=None,
         dynamic_real_features: Optional[np.ndarray]=None,
     ):
+        # cast to avoid loosing future decimal part if initial values come from list of int
+        if static_real_features is not None:
+            static_real_features = static_real_features.astype(np.float32)
+        if dynamic_real_features is not None:
+            dynamic_real_features = dynamic_real_features.astype(np.float32)
+
         self.buffer.initialize_buffer(
-            context,
+            context.astype(np.float32),
             start,
             static_cat_features,
             static_real_features,
-            dynamic_real_features,)
+            dynamic_real_features)
 
     def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
         self.buffer.update_buffer(value, dynamic_real_features)
@@ -245,8 +251,7 @@ class InferenceHelper:
     def _get_inference_df(self, item_id: str):
         infer_df = pd.DataFrame(columns=COLS_INFER_DF)
         values = self.buffer.get_values()
-        infer_df.loc[0] = [*values, item_id] 
-        print(infer_df['start'][0])
+        infer_df.loc[0] = [*values, item_id]
 
         infer_df =  Dataset.from_pandas(infer_df, preserve_index=True)
         infer_df.set_transform(partial(transform_start_field, freq=self.freq))
@@ -257,6 +262,14 @@ class InferenceHelper:
         batch_size: int = 1, # at inference only one row
         item_id: str = 'T0'
     ):
+        infer_loader = create_test_dataloader(
+            config=self.config,
+            freq=self.freq,
+            data=self._get_inference_df(item_id),
+            batch_size=batch_size,
+            mode='infer')
+
+        return next(iter(infer_loader)) #only 1 batch
         infer_loader = create_test_dataloader(
             config=self.config,
             freq=self.freq,
