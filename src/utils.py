@@ -1,6 +1,7 @@
 import pandas as pd
 from functools import lru_cache
 import re
+from datetime import timedelta
 
 @lru_cache(10_000)
 def convert_to_pandas_period(date, freq):
@@ -19,7 +20,7 @@ def create_test_dataset(df, len_chunks):
     for row in df.itertuples():
         tmp = pd.DataFrame()
         tmp['target'] = split_into_chunks(row.target, len_chunks)
-        tmp['start'] = [row.start + datetime.timedelta(hours=i) for i in range(len(tmp))]
+        tmp['start'] = [row.start + timedelta(hours=i) for i in range(len(tmp))]
         tmp['feat_static_cat'] = [row.feat_static_cat] * len(tmp)
         tmp['feat_dynamic_real'] = row.feat_dynamic_real
 
