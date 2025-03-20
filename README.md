@@ -59,7 +59,7 @@ To train and evaluate the TimeSeriesTransformer model:
 3. Follow the example in example.ipynb for training 
 4. Use inference.py functions for inference helper class in production settings
 
-Note: TimeSeriesTransformerForPrediction doen't allow feat_dynamic_real
+Note: TimeSeriesTransformerForPrediction doesn't allow feat_dynamic_real
 
 ## Files Description
 
