@@ -58,6 +58,8 @@ To train and evaluate the TimeSeriesTransformer model:
 2. **Define a configuration for the Transformer:** Update any hyperparameters as needed, https://huggingface.co/docs/transformers/v4.49.0/en/model_doc/time_series_transformer#transformers.TimeSeriesTransformerConfig.
 3. Follow the example in example.ipynb
 
+Note: TimeSeriesTransformerForPrediction doen't allow feat_dynamic_real
+
 ## Files Description
 
 - `ts_transformer.py`: Contains the implementation of the functions to train the TimeSeriesTransformer model.
