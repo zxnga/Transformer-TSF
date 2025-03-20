@@ -1,5 +1,6 @@
 import pandas as pd
 from functools import lru_cache
+import re
 
 @lru_cache(10_000)
 def convert_to_pandas_period(date, freq):
@@ -36,3 +37,33 @@ def create_sequences(data, input_sequence_length, output_sequence_length):
         X.append(data[i:(i + input_sequence_length)])
         y.append(data[(i + input_sequence_length):(i + input_sequence_length + output_sequence_length)])
     return np.array(X), np.array(y)
+
+
+def parse_frequency(freq):
+    m = re.match(r'(\d+)?([A-Za-z]+)', freq)
+    if not m:
+        raise ValueError("Invalid frequency format")
+
+    num = int(m.group(1)) if m.group(1) else 1
+    unit = m.group(2).upper()
+
+    if unit in ['Y', 'YEAR', 'YEARS']:
+        return {'days': num * 365}
+    if unit in ['M', 'MO', 'MONTH', 'MONTHS']:
+        return {'days': num * 30}
+
+    # Mapping for supported units to timedelta keyword arguments.
+    unit_mapping = {
+        'W': 'weeks',
+        'D': 'days',
+        'H': 'hours',
+        'T': 'minutes',
+        'S': 'seconds', 
+        'MS': 'milliseconds',
+        'US': 'microseconds'
+    }
+
+    if unit not in unit_mapping:
+        raise ValueError(f"Unsupported time unit: {unit}")
+
+    return {unit_mapping[unit]: num}

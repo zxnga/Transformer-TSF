@@ -16,7 +16,11 @@ The model expects the dataset to be structured as follows:
 - `target`: The values to be predicted.
 - `start`: The start time of the series.
 - `feat_static_cat`: Static categorical features associated with the time series.
+   - list with dimension equal to the number of features
+- `feat_static_real`:  Dynamic real-valued features associated with the time series.
+   - list with dimension equal to the number of features
 - `feat_dynamic_real`: Dynamic real-valued features that change over time.
+   - array with shape equal to (number of features, target length)
 - `item_id`: Identifier for each time series item.
 
 Ensure your dataset aligns with this structure for optimal performance.
