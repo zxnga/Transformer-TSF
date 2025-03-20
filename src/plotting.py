@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import pandas as pd
+from gluonts.dataset.field_names import FieldName
 
 def plot(ts_index, test_data, forecasts, prediction_length, filename=None):
     fig, ax = plt.subplots()
