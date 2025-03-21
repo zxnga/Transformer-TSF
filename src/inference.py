@@ -2,7 +2,7 @@ from typing import NamedTuple, Optional, List, Dict
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+import datetime
 from datasets import Dataset
 from transformers import PretrainedConfig
 from gluonts.transform import Transformation
@@ -262,14 +262,6 @@ class InferenceHelper:
         batch_size: int = 1, # at inference only one row
         item_id: str = 'T0'
     ):
-        infer_loader = create_test_dataloader(
-            config=self.config,
-            freq=self.freq,
-            data=self._get_inference_df(item_id),
-            batch_size=batch_size,
-            mode='infer')
-
-        return next(iter(infer_loader)) #only 1 batch
         infer_loader = create_test_dataloader(
             config=self.config,
             freq=self.freq,
