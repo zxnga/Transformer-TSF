@@ -156,10 +156,8 @@ class TSLossBuffer(TSBuffer):
         self.new_vals += 1
         super().update_buffer(value, dynamic_real_features)
 
-    #to get true window we have to keep a counter to avoid returning initial context which are not part of the values we predicted
-    # The context after the initial one are values we predicted so are the ones we return to monitor the loss
-    # once we added sufficient new values in the buffer we can just return the whole window
     def get_true_window(self):
+        # to get true window we have to keep a counter to avoid returning initial context which are not part of the values we predicted
         if self.new_vals == 0:
             return np.empty(0)
         if self.new_vals >= self.loss_window:
