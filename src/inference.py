@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, List, Dict
+from typing import Optional, Dict
 
 import pandas as pd
 import numpy as np
@@ -28,6 +28,7 @@ from gluonts.transform import (
     RenameFields
 )
 
+from .buffer import TSBuffer, TSLossBuffer
 from .utils import parse_frequency, transform_start_field
 from .ts_transformer import create_test_dataloader
 
@@ -35,101 +36,28 @@ COLS_INFER_DF = [
     'target', 'start', 'feat_static_cat', 'feat_static_real',
     'feat_dynamic_real', 'item_id']
 
-
-class BufferValues(NamedTuple):
-    context: np.ndarray
-    start: datetime.datetime
-    feat_static_cat: List[int]
-    feat_static_real: List[float]
-    feat_dynamic_real: np.ndarray
-
-
-class TSBuffer:
+class InferenceHelper:
     def __init__(
         self,
-        context_length: int,
-        num_static_cat_features: int,
-        num_static_real_features: int,
-        num_dynamic_real_features: int,
-        timedelta: Dict[str,int],
-        
+        config: PretrainedConfig,
+        freq: str,
+        transformation: Transformation = None,
+        loss_window: int = 0,
     ):
-        self.context_length = context_length
-        self.num_static_cat_features = num_static_cat_features
-        self.num_static_real_features = num_static_real_features
-        self.num_dynamic_real_features = num_dynamic_real_features
-        self.timedelta = timedelta
-
-        self.context = np.zeros((context_length), dtype=np.float32)
-        self.start = None
-        self.static_cat_features = np.zeros(num_static_cat_features)
-        self.static_real_features = np.zeros((num_static_real_features), dtype=np.float32)
-        self.dynamic_real_features = np.zeros(
-            (num_dynamic_real_features,context_length), dtype=np.float32)
-
-    def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
-        # dynamic_real_features is of size (num_dynamic_real_features,)
-        self.context = np.roll(self.context, -1)
-        self.context[-1] = value
-        if self.num_dynamic_real_features > 0:
-            self.dynamic_real_features = np.roll(self.dynamic_real_features, -1)
-            self.dynamic_real_features[-1] = dynamic_real_features
-        self.start = self.start + datetime.timedelta(**self.timedelta)
-
-    def get_values(self):
-        data = (
-            self.context,
-            self.start,
-            self.static_cat_features if self.static_cat_features.size!=0 else None,
-            self.static_real_features if self.static_real_features.size!=0 else None,
-            self.dynamic_real_features if self.dynamic_real_features.size!=0 else None,
-        )
-        return BufferValues(*tuple(data))
-
-    def initialize_buffer(
-        self,
-        context: np.ndarray,
-        start: datetime.datetime,
-        static_cat_features: Optional[np.ndarray]=None,
-        static_real_features: Optional[np.ndarray]=None,
-        dynamic_real_features: Optional[np.ndarray]=None,
-    ):
-        # TODO: use seter instead
-        assert context.shape == self.context.shape, (
-            f"Expected context shape: {self.context.shape}, got {context.shape}")
-
-        if self.num_static_cat_features > 0:
-            assert static_cat_features.shape == self.static_cat_features.shape,(
-                f"Expected static_cat shape: {self.static_cat_features.shape}, got {static_cat_features.shape}")
-            self.static_cat_features = static_cat_features
-
-        if self.num_static_real_features > 0:
-            assert static_real_features.shape == self.static_real_features.shape,(
-                f"Expected static_real shape: {self.static_real_features.shape}, got {static_real_features.shape}")
-            self.static_real_features = static_real_features
-
-        if self.num_dynamic_real_features > 0:
-            assert dynamic_real_features.shape == self.dynamic_real_features.shape,(
-                f"Expected dynamic_real shape: {self.dynamic_real_features.shape}, got {dynamic_real_features.shape}")
-            self.dynamic_real_features = dynamic_real_features
-        
-        self.context = context
-        self.start = start
-
-class InferenceHelper:
-    def __init__(self, config: PretrainedConfig, freq: str, transformation: Transformation = None):
         self.config = config
         self.freq = freq
         self.transformation = transformation
         if transformation is None:
             self.transformation = self._create_transformation()
         
-        self.buffer = TSBuffer(
+        buffer_cls = TSLossBuffer if loss_window > 0 else TSBuffer
+        self.buffer = buffer_cls(
             config.context_length,
             config.num_static_categorical_features,
             config.num_static_real_features,
             config.num_dynamic_real_features,
-            parse_frequency(freq))
+            parse_frequency(freq),
+            loss_window)
 
     #TODO: remove transformation form class
     def _create_transformation(self) -> Transformation:
@@ -228,16 +156,10 @@ class InferenceHelper:
         self,
         context: np.ndarray,
         start: datetime.datetime,
-        static_cat_features: Optional[List[int]]=None,
-        static_real_features: Optional[List[float]]=None,
+        static_cat_features: Optional[np.ndarray]=None,
+        static_real_features: Optional[np.ndarray]=None,
         dynamic_real_features: Optional[np.ndarray]=None,
     ):
-        # cast to avoid loosing future decimal part if initial values come from list of int
-        if static_real_features is not None:
-            static_real_features = static_real_features.astype(np.float32)
-        if dynamic_real_features is not None:
-            dynamic_real_features = dynamic_real_features.astype(np.float32)
-
         self.buffer.initialize_buffer(
             context.astype(np.float32),
             start,
