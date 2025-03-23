@@ -1,6 +1,7 @@
 from typing import NamedTuple, Optional, Dict, List
 
 import numpy as np
+import datetime
 
 class BufferValues(NamedTuple):
     context: np.ndarray
@@ -16,7 +17,9 @@ class TSBuffer:
         num_static_cat_features: int,
         num_static_real_features: int,
         num_dynamic_real_features: int,
-        timedelta: Dict[str,int],    
+        timedelta: Dict[str,int],
+        *args,
+        **kwargs,
     ):
         self.context_length = context_length
         self.current_context_size = 0 # if initial context < context_length
@@ -31,27 +34,6 @@ class TSBuffer:
         self.static_real_features = np.zeros((num_static_real_features), dtype=np.float32)
         self.dynamic_real_features = np.zeros(
             (num_dynamic_real_features,context_length), dtype=np.float32)
-
-    def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
-        # dynamic_real_features is of size (num_dynamic_real_features,)
-        self.context = np.roll(self.context, -1)
-        self.context[-1] = value
-        if self.num_dynamic_real_features > 0:
-            self.dynamic_real_features = np.roll(self.dynamic_real_features, -1)
-            self.dynamic_real_features[-1] = dynamic_real_features
-        self.start = self.start + datetime.timedelta(**self.timedelta)
-        if self.current_context_size < self.context_length:
-            self.current_context_size += 1
-
-    def get_values(self):
-        data = (
-            self.context[-self.current_context_size:],
-            self.start,
-            self.static_cat_features if self.static_cat_features.size!=0 else None,
-            self.static_real_features if self.static_real_features.size!=0 else None,
-            self.dynamic_real_features[-self.current_context_size:] if self.dynamic_real_features.size!=0 else None,
-        )
-        return BufferValues(*tuple(data))
 
     def initialize_buffer(
         self,
@@ -91,34 +73,73 @@ class TSBuffer:
         self.context = context
         self.start = start
 
+    def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
+        # dynamic_real_features is of size (num_dynamic_real_features,)
+        self.context = np.roll(self.context, -1)
+        self.context[-1] = value
+        if self.num_dynamic_real_features > 0:
+            self.dynamic_real_features = np.roll(self.dynamic_real_features, -1)
+            self.dynamic_real_features[-1] = dynamic_real_features
+        self.start = self.start + datetime.timedelta(**self.timedelta)
+        if self.current_context_size < self.context_length:
+            self.current_context_size += 1
+
+    def get_values(self):
+        data = (
+            self.context[-self.current_context_size:],
+            self.start,
+            self.static_cat_features if self.static_cat_features.size!=0 else None,
+            self.static_real_features if self.static_real_features.size!=0 else None,
+            self.dynamic_real_features[-self.current_context_size:] if self.dynamic_real_features.size!=0 else None,
+        )
+        return BufferValues(*tuple(data))
+
 class TSLossBuffer(TSBuffer):
     def __init__(
         self,
-        loss_window: int,
         context_length: int,
         num_static_cat_features: int,
         num_static_real_features: int,
         num_dynamic_real_features: int,
         timedelta: Dict[str,int],
+        loss_window: int,
+        *args,
+        **kwargs,
     ):
         super().__init__(
             context_length,
             num_static_cat_features,
             num_static_real_features,
             num_dynamic_real_features,
-            timedelta)
+            timedelta,
+            *args,
+            **kwargs)
         
         self.loss_window = loss_window
-        self.monitor_counter = 0
-        self.monitor_loss_ready = False
-        self.window_full = False
+        self.new_vals = 0
         # store only 1 array
         if loss_window > self.context_length:
             self.context = np.zeros((loss_window), dtype=np.float32)
 
-    def initialize_buffer():
-        # TODO context can now be of size window
-        pass
+    def initialize_buffer(self,
+        context: np.ndarray,
+        start: datetime.datetime,
+        static_cat_features: Optional[np.ndarray]=None,
+        static_real_features: Optional[np.ndarray]=None,
+        dynamic_real_features: Optional[np.ndarray]=None,
+    ):
+        super().initialize_buffer(
+            context,
+            start,
+            static_cat_features,
+            static_real_features,
+            dynamic_real_features)
+
+        if self.loss_window > self.context_length: # pad to get full window size
+            self.context = np.pad(
+                self.context,
+                (self.loss_window - self.context_length, 0),
+                mode='constant')       
         
     def get_values(self):
         assert self.context_length >= self.current_context_size
@@ -132,18 +153,19 @@ class TSLossBuffer(TSBuffer):
         return BufferValues(*data)
 
     def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
-        self.monitor_counter += 1
-        if self.monitor_counter == self.context_length:
-            self.monitor_loss_ready = True
-        if self.monitor_counter == self.loss_window:
-            self.window_full =  True
+        self.new_vals += 1
         super().update_buffer(value, dynamic_real_features)
 
     #to get true window we have to keep a counter to avoid returning initial context which are not part of the values we predicted
     # The context after the initial one are values we predicted so are the ones we return to monitor the loss
-    # once we added n=context_legth new values in the buffer we can just return the whole window
+    # once we added sufficient new values in the buffer we can just return the whole window
     def get_true_window(self):
-        if self.monitor_loss_ready:
-            return self.context
+        if self.new_vals == 0:
+            return np.empty(0)
+        if self.new_vals >= self.loss_window:
+            return self.context[-self.loss_window:]
+        else:
+            return self.context[-self.new_vals:]
+
 
     
