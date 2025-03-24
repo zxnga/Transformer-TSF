@@ -27,8 +27,8 @@ from gluonts.transform import (
 )
 
 from .buffer import TSBuffer, TSLossBuffer
-from .utils import parse_frequency, transform_start_field
-from .ts_transformer import create_test_dataloader
+from ..utils import parse_frequency, transform_start_field
+from ..ts_transformer import create_test_dataloader
 
 COLS_INFER_DF = [
     'target', 'start', 'feat_static_cat', 'feat_static_real',
