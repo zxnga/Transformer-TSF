@@ -8,9 +8,7 @@ from transformers import PretrainedConfig
 from gluonts.transform import Transformation
 from gluonts.dataset.field_names import FieldName
 
-from gluonts.time_feature import (
-    time_features_from_frequency_str
-)
+from gluonts.time_feature import time_features_from_frequency_str
 
 from gluonts.transform import (
     AddAgeFeature,
