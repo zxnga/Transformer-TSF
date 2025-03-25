@@ -41,7 +41,7 @@ class TFInferenceHelper:
                 if self.model.config.num_static_real_features > 0
                 else None,
                 past_time_features=batch["past_time_features"].to(self.device),
-                past_values=batch["past_values"].to(device),
+                past_values=batch["past_values"].to(self.device),
                 future_time_features=batch["future_time_features"].to(self.device),
                 past_observed_mask=batch["past_observed_mask"].to(self.device),
             )
