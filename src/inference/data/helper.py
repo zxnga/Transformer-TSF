@@ -8,8 +8,9 @@ from datasets import Dataset
 from transformers import PretrainedConfig
 from gluonts.transform import Transformation
 from gluonts.dataset.field_names import FieldName
-# from gluonts.itertools import IterableSlice
+from gluonts.dataset.loader import as_stacked_batches
 from gluonts.time_feature import time_features_from_frequency_str
+from functools import partial
 
 from gluonts.transform import (
     AddAgeFeature,
@@ -201,10 +202,10 @@ class TFDataHandler:
             "past_observed_mask",
             "future_time_features",
         ]
-        if config.num_static_categorical_features > 0:
+        if self.config.num_static_categorical_features > 0:
             PREDICTION_INPUT_NAMES.append("static_categorical_features")
 
-        if config.num_static_real_features > 0:
+        if self.config.num_static_real_features > 0:
             PREDICTION_INPUT_NAMES.append("static_real_features")
 
         transformed_data = self.transformation.apply(data, is_train=False)
