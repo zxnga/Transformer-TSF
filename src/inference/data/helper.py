@@ -3,11 +3,12 @@ from typing import Optional, Dict
 import pandas as pd
 import numpy as np
 import datetime
+import torch.nn
 from datasets import Dataset
 from transformers import PretrainedConfig
 from gluonts.transform import Transformation
 from gluonts.dataset.field_names import FieldName
-
+# from gluonts.itertools import IterableSlice
 from gluonts.time_feature import time_features_from_frequency_str
 
 from gluonts.transform import (
@@ -26,15 +27,19 @@ from gluonts.transform import (
     RenameFields
 )
 
-from .buffer import TSBuffer, TSLossBuffer
-from ..utils import parse_frequency, transform_start_field
-from ..ts_transformer import create_test_dataloader
+from .buffer import TSBuffer, TSLossBuffer, CircularHorizonPredictionBuffer
+from ...utils import parse_frequency, transform_start_field
 
 COLS_INFER_DF = [
     'target', 'start', 'feat_static_cat', 'feat_static_real',
     'feat_dynamic_real', 'item_id']
 
-class InferenceHelper:
+class TFDataHandler:
+    """
+        Transformer Data Helper to handle the data needed by the model:
+            - Context needed to make the inference
+            - Opionnaly true values to be able to monitor the loss of the model
+    """
     def __init__(
         self,
         config: PretrainedConfig,
@@ -48,8 +53,14 @@ class InferenceHelper:
         if transformation is None:
             self.transformation = self._create_transformation()
         
-        buffer_cls = TSLossBuffer if loss_window > 0 else TSBuffer
-        self.buffer = buffer_cls(
+        context_buffer_cls = TSBuffer
+        self.pred_buffer = None
+        if loss_window > 0:
+            context_buffer_cls = TSLossBuffer
+            self.pred_buffer = CircularHorizonPredictionBuffer(
+                loss_window, self.config.prediction_length)
+
+        self.context_buffer = context_buffer_cls(
             config.context_length,
             config.num_static_categorical_features,
             config.num_static_real_features,
@@ -158,35 +169,73 @@ class InferenceHelper:
         static_real_features: Optional[np.ndarray]=None,
         dynamic_real_features: Optional[np.ndarray]=None,
     ):
-        self.buffer.initialize_buffer(
+        self.context_buffer.initialize(
             context.astype(np.float32),
             start,
             static_cat_features,
             static_real_features,
             dynamic_real_features)
 
-    def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
-        self.buffer.update_buffer(value, dynamic_real_features)
+    def update_context_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
+        self.context_buffer.update(value, dynamic_real_features)
 
-    def _get_inference_df(self, item_id: str):
+    def _get_inference_df(self, item_id: str) -> pd.DataFrame:
         infer_df = pd.DataFrame(columns=COLS_INFER_DF)
-        values = self.buffer.get_values()
+        values = self.context_buffer.get_values()
         infer_df.loc[0] = [*values, item_id]
 
         infer_df =  Dataset.from_pandas(infer_df, preserve_index=True)
         infer_df.set_transform(partial(transform_start_field, freq=self.freq))
         return infer_df
 
-    def get_infer_data(
+    def _create_inference_dataloader(
+        self,
+        data: pd.DataFrame,
+        batch_size: int,
+        mode = 'infer',
+        **kwargs,
+    ):
+        PREDICTION_INPUT_NAMES = [
+            "past_time_features",
+            "past_values",
+            "past_observed_mask",
+            "future_time_features",
+        ]
+        if config.num_static_categorical_features > 0:
+            PREDICTION_INPUT_NAMES.append("static_categorical_features")
+
+        if config.num_static_real_features > 0:
+            PREDICTION_INPUT_NAMES.append("static_real_features")
+
+        transformed_data = self.transformation.apply(data, is_train=False)
+        instance_sampler = InstanceSplitter(
+                target_field="values",
+                is_pad_field=FieldName.IS_PAD,
+                start_field=FieldName.START,
+                forecast_start_field=FieldName.FORECAST_START,
+                instance_sampler=TestSplitSampler(),
+                past_length=self.config.context_length,
+                future_length=self.config.prediction_length,
+                time_series_fields=["time_features", "observed_mask"])
+
+        testing_instances = instance_sampler.apply(transformed_data, is_train=False)
+
+        return as_stacked_batches(
+            testing_instances,
+            batch_size=batch_size,
+            output_type=torch.tensor,
+            field_names=PREDICTION_INPUT_NAMES,
+        )
+
+    def get_infer_dataloader(
         self,
         batch_size: int = 1, # at inference only one row
         item_id: str = 'T0'
     ):
-        infer_loader = create_test_dataloader(
-            config=self.config,
-            freq=self.freq,
+        infer_loader = self._create_inference_dataloader(
             data=self._get_inference_df(item_id),
             batch_size=batch_size,
             mode='infer')
 
-        return next(iter(infer_loader)) #only 1 batch
+        # return next(iter(infer_loader)) #only 1 batch
+        return infer_loader

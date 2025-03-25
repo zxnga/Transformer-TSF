@@ -35,7 +35,7 @@ class TSBuffer:
         self.dynamic_real_features = np.zeros(
             (num_dynamic_real_features,context_length), dtype=np.float32)
 
-    def initialize_buffer(
+    def initialize(
         self,
         context: np.ndarray,
         start: datetime.datetime,
@@ -73,7 +73,7 @@ class TSBuffer:
         self.context = context
         self.start = start
 
-    def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
+    def update(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
         # dynamic_real_features is of size (num_dynamic_real_features,)
         self.context = np.roll(self.context, -1)
         self.context[-1] = value
@@ -121,14 +121,14 @@ class TSLossBuffer(TSBuffer):
         if loss_window > self.context_length:
             self.context = np.zeros((loss_window), dtype=np.float32)
 
-    def initialize_buffer(self,
+    def initialize(self,
         context: np.ndarray,
         start: datetime.datetime,
         static_cat_features: Optional[np.ndarray]=None,
         static_real_features: Optional[np.ndarray]=None,
         dynamic_real_features: Optional[np.ndarray]=None,
     ):
-        super().initialize_buffer(
+        super().initialize(
             context,
             start,
             static_cat_features,
@@ -152,9 +152,9 @@ class TSLossBuffer(TSBuffer):
         )
         return BufferValues(*data)
 
-    def update_buffer(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
+    def update(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
         self.new_vals += 1
-        super().update_buffer(value, dynamic_real_features)
+        super().update(value, dynamic_real_features)
 
     def get_true_window(self):
         # to get true window we have to keep a counter to avoid returning initial context which are not part of the values we predicted
@@ -173,6 +173,8 @@ class CircularHorizonPredictionBuffer:
         Parameters:
             loss_window (int): The number of recent true time steps used for loss monitoring.
             forecast_length (int): The number of forecasted values produced at each update.
+
+            #TODO: chnage name of buffer (predbuffer in upper class) + change property name in upper class /!
         """
         # The buffer size is set to loss_window + forecast_length to cover all future predictions that may be needed.
         self.loss_window = loss_window
