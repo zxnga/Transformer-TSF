@@ -332,6 +332,7 @@ def setup_training(
     time_features = time_features_from_frequency_str(freq)
     
     transformer_config['num_time_features'] = len(time_features) + 1
+    transformer_config['lags_sequence'] = lags_sequence
     config = TimeSeriesTransformerConfig(**transformer_config)
     transformer = TimeSeriesTransformerForPrediction(config)
 
