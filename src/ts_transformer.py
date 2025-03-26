@@ -348,8 +348,6 @@ def setup_testing_eval(test_df: pd.DataFrame):
 
     return test_dataloader, test_data
 
-    
-
 def train(
     transformer,
     train_dataloader,
