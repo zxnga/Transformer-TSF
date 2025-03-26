@@ -222,6 +222,7 @@ def create_instance_splitter(
         "infer": TestSplitSampler(),
     }[mode]
 
+    # TODO: remove infer mode (same as test have to keep lags)
     if past_length is None:
         past_length = config.context_length if mode=='infer' else config.context_length + max(config.lags_sequence)
 

@@ -215,7 +215,7 @@ class TFDataHandler:
                 start_field=FieldName.START,
                 forecast_start_field=FieldName.FORECAST_START,
                 instance_sampler=TestSplitSampler(),
-                past_length=self.config.context_length,
+                past_length=self.config.context_length + max(self.config.lags_sequence),
                 future_length=self.config.prediction_length,
                 time_series_fields=["time_features", "observed_mask"])
 
