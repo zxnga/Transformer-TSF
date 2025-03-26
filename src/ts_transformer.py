@@ -308,7 +308,6 @@ def create_backtest_dataloader(
 
 def setup_training(
     train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
     freq: str,
     batch_size: int = 32,
     num_batches_per_epoch: int = 16,
@@ -318,9 +317,6 @@ def setup_training(
     train_data = Dataset.from_pandas(train_df, preserve_index=False)
     train_data.set_transform(partial(transform_start_field, freq=freq))
 
-    test_data = Dataset.from_pandas(test_df, preserve_index=True)
-    test_data.set_transform(partial(transform_start_field, freq=freq))
-    
     lags_sequence = get_lags_for_frequency(freq)
     if max_lags:
         lags_sequence = [i for i in lags_sequence if i<=max_lags]
@@ -332,11 +328,17 @@ def setup_training(
     transformer = TimeSeriesTransformerForPrediction(config)
 
     train_dataloader = create_train_dataloader(
-    config=config,
-    freq=freq,
-    data=train_data,
-    batch_size=32,
-    num_batches_per_epoch=16)
+                            config=config,
+                            freq=freq,
+                            data=train_data,
+                            batch_size=32,
+                            num_batches_per_epoch=16)
+
+    return transformer, train_dataloader
+
+def setup_testing_eval(test_df: pd.DataFrame):
+    test_data = Dataset.from_pandas(test_df, preserve_index=True)
+    test_data.set_transform(partial(transform_start_field, freq=freq))
 
     test_dataloader = create_backtest_dataloader(
     config=config,
@@ -344,7 +346,9 @@ def setup_training(
     data=test_data,
     batch_size=16)
 
-    return transformer, train_dataloader, test_dataloader, test_data
+    return test_dataloader, test_data
+
+    
 
 def train(
     transformer,
