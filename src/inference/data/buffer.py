@@ -255,7 +255,7 @@ class CircularHorizonPredictionBuffer:
                 uncerts = self.uncert_buffer[idx]
             else:
                 preds, uncerts = [], []
-            sliding_predictions.append((t, preds, uncerts))
+            sliding_predictions.append((t, np.array(preds), np.array(uncerts)))
         return sliding_predictions
 
     def get_buffer_state(self):
