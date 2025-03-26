@@ -208,7 +208,7 @@ def create_instance_splitter(
     train_sampler: Optional[InstanceSampler] = None,
     validation_sampler: Optional[InstanceSampler] = None,
 ) -> Transformation:
-    assert mode in ["train", "validation", "test", "infer"]
+    assert mode in ["train", "validation", "test"]
 
     instance_sampler = {
         "train": train_sampler
@@ -217,8 +217,7 @@ def create_instance_splitter(
         ),
         "validation": validation_sampler
         or ValidationSplitSampler(min_future=config.prediction_length),
-        "test": TestSplitSampler(),
-        "infer": TestSplitSampler(),
+        "test": TestSplitSampler()
     }[mode]
 
     return InstanceSplitter(
