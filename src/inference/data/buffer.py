@@ -60,7 +60,7 @@ class TSBuffer:
                 f"Expected dynamic_real shape: {self.dynamic_real_features.shape}, got {dynamic_real_features.shape}")
             self.dynamic_real_features = dynamic_real_features.astype(np.float32)
         
-        # keep only necessary context
+        # keep only necessary context TODO not necessary i think, automatic in dataloader (to check)
         if context.size < self.context_length:
             self.current_context_size = context.size
             context = np.pad(

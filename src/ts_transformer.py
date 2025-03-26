@@ -207,7 +207,6 @@ def create_instance_splitter(
     mode: str,
     train_sampler: Optional[InstanceSampler] = None,
     validation_sampler: Optional[InstanceSampler] = None,
-    past_length = None,
 ) -> Transformation:
     assert mode in ["train", "validation", "test", "infer"]
 
@@ -222,17 +221,13 @@ def create_instance_splitter(
         "infer": TestSplitSampler(),
     }[mode]
 
-    # TODO: remove infer mode (same as test have to keep lags)
-    if past_length is None:
-        past_length = config.context_length if mode=='infer' else config.context_length + max(config.lags_sequence)
-
     return InstanceSplitter(
         target_field="values",
         is_pad_field=FieldName.IS_PAD,
         start_field=FieldName.START,
         forecast_start_field=FieldName.FORECAST_START,
         instance_sampler=instance_sampler,
-        past_length=past_length,
+        past_length=config.context_length + max(config.lags_sequence),
         future_length=config.prediction_length,
         time_series_fields=["time_features", "observed_mask"],
     )
@@ -300,7 +295,7 @@ def create_backtest_dataloader(
 
     # we create a Validation Instance splitter which will sample the very last
     # context window seen during training only for the encoder.
-    instance_sampler = create_instance_splitter(config, "validation",past_length=past_length)
+    instance_sampler = create_instance_splitter(config, "validation")
 
     # we apply the transformations in train mode
     testing_instances = instance_sampler.apply(transformed_data, is_train=True)
@@ -318,7 +313,7 @@ def setup_training(
     freq: str,
     batch_size: int = 32,
     num_batches_per_epoch: int = 16,
-    nb_lags: Optional[int] = None,
+    max_lags: Optional[int] = None,
     transformer_config: Optional[Dict] = {},
 ):
     train_data = Dataset.from_pandas(train_df, preserve_index=False)
@@ -329,7 +324,7 @@ def setup_training(
     
     lags_sequence = get_lags_for_frequency(freq)
     if nb_lags:
-        lags_sequence = lags_sequence[:nb_lags]
+        lags_sequence = [i for i in lags_sequence if i<=max_lags]
     time_features = time_features_from_frequency_str(freq)
     
     transformer_config['num_time_features'] = len(time_features) + 1
