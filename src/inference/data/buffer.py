@@ -231,11 +231,11 @@ class CircularHorizonPredictionBuffer:
             self.pred_buffer[idx].append(pred)
             self.uncert_buffer[idx].append(uncert)
 
-        # Retrieve the predictions for the current true time (without clearing them).
-        current_idx = t % self.buffer_size
-        current_predictions = self.pred_buffer[current_idx]
-        current_uncertainties = self.uncert_buffer[current_idx]
-        return current_predictions, current_uncertainties
+        # # Retrieve the predictions for the current true time (without clearing them).
+        # current_idx = t % self.buffer_size
+        # current_predictions = self.pred_buffer[current_idx]
+        # current_uncertainties = self.uncert_buffer[current_idx]
+        # return current_predictions, current_uncertainties
 
     def get_buffer_state(self):
         """

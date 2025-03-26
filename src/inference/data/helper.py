@@ -241,3 +241,6 @@ class TFDataHandler:
 
         # return next(iter(infer_loader)) #only 1 batch
         return infer_loader
+
+    def update_prediction_buffer(self, values: np.ndarray, uncertainties: np.ndarray):
+        self.pred_buffer.update(values, uncertainties)

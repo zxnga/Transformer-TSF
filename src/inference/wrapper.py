@@ -46,8 +46,7 @@ class TFInferenceHelper:
                 past_observed_mask=batch["past_observed_mask"].to(self.device),
             )
             forecasts.append(outputs.sequences.cpu().numpy())
-        
-        return np.vstack(forecasts) #np.median(pred, 0)
+        return np.vstack(forecasts) #np.median(pred, 1)
 
     def predict(self, data_loader: IterableSlice, form_return: str = 'sample') -> Tuple[np.ndarray, Optional[np.ndarray]]:
         values = self._prediction_from_dataloader(data_loader)
@@ -58,7 +57,7 @@ class TFInferenceHelper:
         if form_return == 'sample':
             return values, None
         elif form_return == 'single':
-            return np.median(values, 0), np.std(values, 0) 
+            return np.median(values, 1), np.std(values, 1) 
         else:
             raise NotImplementedError
 
@@ -83,12 +82,16 @@ class TFWrapper:
         self.reset_buffers()
 
     @property
-    def context(self):
-        return self.data_handler.context_buffer.context
+    def context_length(self):
+        return self.data_handler.context_buffer.context_length
 
     @property
-    def full_context(self):
+    def full_context_length(self):
         return self.data_handler.full_context_length
+
+    @property
+    def context(self):
+        return self.data_handler.context_buffer.context
 
     @property
     def prediction_and_uncertainty(self):
@@ -136,10 +139,12 @@ class TFWrapper:
         #TODO: check how to handle update of pred_buffer and return type of user
         "forecast values"
         data_loader = self.data_handler.get_infer_dataloader(batch_size, item_id)
-        values = self.inference_helper.predict(data_loader, 'sample')
+        values, _ = self.inference_helper.predict(data_loader, 'sample')
+
         if self.loss_window > 0:
-            values_ = self.inference_helper.modify_output(values, 'single')
-            self.data_handler.update(*values_)
+            values_, uncertainty = self.inference_helper.modify_output(values, 'single')
+            #TODO: better handle dimension + check for non-single batch
+            self.data_handler.update_prediction_buffer(values_.squeeze(), uncertainty.squeeze())
         return values
 
     @staticmethod
