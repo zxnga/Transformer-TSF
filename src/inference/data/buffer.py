@@ -179,7 +179,7 @@ class CircularHorizonPredictionBuffer:
         # The buffer size is set to loss_window + forecast_length to cover all future predictions that may be needed.
         self.loss_window = loss_window
         self.forecast_length = forecast_length
-        self.buffer_size = loss_window + forecast_length
+        self.buffer_size = loss_window + forecast_length - 1
 
         # Create buffers for predictions and uncertainties.
         # Each index in the buffer corresponds to a forecast horizon relative to some true time.
@@ -212,12 +212,12 @@ class CircularHorizonPredictionBuffer:
         """
         # Advance the true time.
         self.current_time += 1
-        t = self.current_time
+        # t = self.current_time
 
         # Process each forecast horizon.
         for h, (pred, uncert) in enumerate(zip(forecast, uncertainties)):
             # Compute the absolute time for which this prediction is intended.
-            predicted_time = t + h
+            predicted_time = self.current_time + h
             # Determine the circular buffer index.
             idx = predicted_time % self.buffer_size
             # Compute the cycle number for this predicted time.
@@ -231,11 +231,30 @@ class CircularHorizonPredictionBuffer:
             self.pred_buffer[idx].append(pred)
             self.uncert_buffer[idx].append(uncert)
 
-        # # Retrieve the predictions for the current true time (without clearing them).
-        # current_idx = t % self.buffer_size
-        # current_predictions = self.pred_buffer[current_idx]
-        # current_uncertainties = self.uncert_buffer[current_idx]
-        # return current_predictions, current_uncertainties
+    def get_sliding_window_predictions(self):
+        """
+        Retrieves the predictions (and uncertainties) for the last `loss_window` true time steps.
+        For each true time step t in the window, the corresponding buffer slot is determined as t % buffer_size.
+        The slot is valid only if its stored cycle equals (t // buffer_size); otherwise, no predictions are available for that t.
+        
+        Returns:
+            List of tuples (time_step, predictions, uncertainties), sorted in chronological order.
+        """
+        if self.current_time < 0:
+            return []
+        
+        start_time = max(0, self.current_time - self.loss_window + 1)
+        sliding_predictions = []
+        for t in range(start_time, self.current_time + 1):
+            idx = t % self.buffer_size
+            expected_cycle = t // self.buffer_size
+            if self.cycles[idx] == expected_cycle:
+                preds = self.pred_buffer[idx]
+                uncerts = self.uncert_buffer[idx]
+            else:
+                preds, uncerts = [], []
+            sliding_predictions.append((t, preds, uncerts))
+        return sliding_predictions
 
     def get_buffer_state(self):
         """

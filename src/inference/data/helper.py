@@ -244,3 +244,12 @@ class TFDataHandler:
 
     def update_prediction_buffer(self, values: np.ndarray, uncertainties: np.ndarray):
         self.pred_buffer.update(values, uncertainties)
+
+    def get_past_points_predictions(self):
+        if self.pred_buffer is None:
+            raise NotImplementedError('use loss window > 0')
+        else:
+            return self.pred_buffer.get_sliding_window_predictions()
+
+    def get_past_true_points(self):
+        return self.context_buffer.get_true_window()

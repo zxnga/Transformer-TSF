@@ -79,7 +79,11 @@ class TFWrapper:
         self.loss_window = loss_window
         self.data_transformation = data_transformation
 
+        self.data_handler = None
+        self.inference_helper = None
         self.reset_buffers()
+
+        self.last_action_ingest = None
 
     @property
     def context_length(self):
@@ -100,6 +104,10 @@ class TFWrapper:
             return (getattr(pred_buf, "pred_buffer", None),
                     getattr(pred_buf, "uncert_buffer", None))
         return None
+
+    @property
+    def nb_prediction(self):
+        return self.data_handler.pred_buffer.current_time + 1
 
     def reset_buffers(self):
         self.data_handler = TFDataHandler(
@@ -130,6 +138,7 @@ class TFWrapper:
     def ingest(self, value: float, dynamic_real_features: Optional[np.ndarray]=None):
         "ingest incomming time-series data"
         self.data_handler.update_context_buffer(value, dynamic_real_features)
+        self.last_action_ingest = True
 
     def predict(self,
         batch_size: int = 1, # at inference only one row
@@ -145,7 +154,24 @@ class TFWrapper:
             values_, uncertainty = self.inference_helper.modify_output(values, 'single')
             #TODO: better handle dimension + check for non-single batch
             self.data_handler.update_prediction_buffer(values_.squeeze(), uncertainty.squeeze())
+
+        self.last_action_ingest = False
         return values
+
+    def get_last_points_predictions(self):
+        """
+        Carefull ! As soon as a prediction is made for a timestep, this timestep is considered valid
+        and predictions made in the past for that timestep are returned. We may not have access at that point
+        at the true value for that timestep. -> need to ingest the true value first
+        -> we make prediction before ingesting as the first prediction uses the context
+        """
+        #TODO: verify alignement if start with ingest + maybe crop the list here
+        if not self.last_action_ingest:
+            print("Lest prediction included, no given True value for it. Ingest the next value for alignement!")
+        return self.data_handler.get_past_points_predictions()
+
+    def get_last_true_points(self):
+        return self.data_handler.get_past_true_points()
 
     @staticmethod
     def _maybe_cast_type(array: Optional[Union[List[float], np.ndarray]]) -> np.ndarray:
