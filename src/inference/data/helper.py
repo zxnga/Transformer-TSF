@@ -51,6 +51,9 @@ class TFDataHandler:
         self.config = config
         self.freq = freq
         self.transformation = transformation
+        self.context_length = config.context_length
+        # actual context pass during inference is context_length + max(lags_sequence)
+        self.full_context_length = config.context_length + max(config.lags_sequence)
         if transformation is None:
             self.transformation = self._create_transformation()
         
@@ -62,7 +65,7 @@ class TFDataHandler:
                 loss_window, self.config.prediction_length)
 
         self.context_buffer = context_buffer_cls(
-            config.context_length,
+            config.full_context_length,
             config.num_static_categorical_features,
             config.num_static_real_features,
             config.num_dynamic_real_features,
@@ -215,7 +218,7 @@ class TFDataHandler:
                 start_field=FieldName.START,
                 forecast_start_field=FieldName.FORECAST_START,
                 instance_sampler=TestSplitSampler(),
-                past_length=self.config.context_length + max(self.config.lags_sequence),
+                past_length=self.full_context_length,
                 future_length=self.config.prediction_length,
                 time_series_fields=["time_features", "observed_mask"])
 
