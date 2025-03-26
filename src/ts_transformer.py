@@ -323,7 +323,7 @@ def setup_training(
     test_data.set_transform(partial(transform_start_field, freq=freq))
     
     lags_sequence = get_lags_for_frequency(freq)
-    if nb_lags:
+    if max_lags:
         lags_sequence = [i for i in lags_sequence if i<=max_lags]
     time_features = time_features_from_frequency_str(freq)
     
