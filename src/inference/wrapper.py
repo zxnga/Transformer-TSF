@@ -87,6 +87,10 @@ class TFWrapper:
         return self.data_handler.context_buffer.context
 
     @property
+    def full_context(self):
+        return self.data_handler.full_context_length
+
+    @property
     def prediction_and_uncertainty(self):
         pred_buf = getattr(self.data_handler, "pred_buffer", None)
         if pred_buf:
