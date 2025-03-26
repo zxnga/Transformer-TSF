@@ -196,7 +196,6 @@ class TFDataHandler:
         self,
         data: pd.DataFrame,
         batch_size: int,
-        mode = 'infer',
         **kwargs,
     ):
         PREDICTION_INPUT_NAMES = [
@@ -238,8 +237,7 @@ class TFDataHandler:
     ):
         infer_loader = self._create_inference_dataloader(
             data=self._get_inference_df(item_id),
-            batch_size=batch_size,
-            mode='infer')
+            batch_size=batch_size)
 
         # return next(iter(infer_loader)) #only 1 batch
         return infer_loader
