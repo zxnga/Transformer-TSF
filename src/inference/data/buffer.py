@@ -236,6 +236,8 @@ class CircularHorizonPredictionBuffer:
         Retrieves the predictions (and uncertainties) for the last `loss_window` true time steps.
         For each true time step t in the window, the corresponding buffer slot is determined as t % buffer_size.
         The slot is valid only if its stored cycle equals (t // buffer_size); otherwise, no predictions are available for that t.
+
+        First prediction is at index 0.
         
         Returns:
             List of tuples (time_step, predictions, uncertainties), sorted in chronological order.
