@@ -65,7 +65,7 @@ class TFDataHandler:
                 loss_window, self.config.prediction_length)
 
         self.context_buffer = context_buffer_cls(
-            config.full_context_length,
+            self.full_context_length,
             config.num_static_categorical_features,
             config.num_static_real_features,
             config.num_dynamic_real_features,
