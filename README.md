@@ -2,6 +2,9 @@
 
 This project implements time series forecasting using a Vanilla Transformer model, using HF's TimeSeriesTransformer.
 
+It contains inference helper classes to help managing the model in a production setting.
+It also enables the monitoring of the forecasting loss of the model to detect shifts in the underlying data distribution.
+
 ## Table of Contents
 
 - [Dataset Structure](#dataset-structure)
@@ -19,7 +22,7 @@ The model expects the dataset to be structured as follows:
    - list with dimension equal to the number of features
 - `feat_static_real`:  Dynamic real-valued features associated with the time series.
    - list with dimension equal to the number of features
-- `feat_dynamic_real`: Dynamic real-valued features that change over time.
+- `feat_dynamic_real`: Dynamic real-valued features that change over time. (curretnly not supported)
    - array with shape equal to (number of features, target length)
 - `item_id`: Identifier for each time series item.
 
@@ -62,9 +65,23 @@ To train and evaluate the TimeSeriesTransformer model:
 Note: TimeSeriesTransformerForPrediction doesn't allow feat_dynamic_real
 
 ## Files Description
-
-- `ts_transformer.py`: Contains the implementation of the functions to train the TimeSeriesTransformer model.
-- `plotting.py`: Includes functions for visualizing the results.
-- `utils.py`: Utility functions for data preprocessing, loading, and other helper methods.
-- `inference.py` : Helper when in production to make easy inference
-- `buffer.py`: Buffers to store context and for loss monitoring capacities
+`
+Transformer-TSF
+├── src (core codes)
+│   ├── compare
+│   │   ├── lstm.py (simple lstm model to use as comparison)
+│   ├── inference (classic RL algorithms)
+│   │   ├── data
+│   │   |   ├── data
+│   │   |   |   ├── buffer.py (buffers to store context, true values and predictions)
+│   │   |   |   ├── helper.py (helper to manage all the data needed by the model)
+│   │   ├── monitor.py (loss monitoring via ensemble forecast uncertainty weighting)
+│   │   ├── wrapper.py (model wrapper for inference)
+│   │   └── ...
+│   ├── plotting.py
+│   ├── ts_transformer.py (functions to initilalize, train and test the model)
+│   ├── utils.py
+├── README.md
+├── requiremetns.txt
+├── train_example.ipynb
+`
