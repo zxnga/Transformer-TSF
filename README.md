@@ -67,6 +67,9 @@ Note: TimeSeriesTransformerForPrediction doesn't allow feat_dynamic_real
 ## Files Description
 ```
 Transformer-TSF
+├── examples
+│   ├── loss_monitoring.ipynb
+│   ├── train_test.ipynb
 ├── src (core codes)
 │   ├── compare
 │   │   ├── lstm.py (simple lstm model to use as comparison)
