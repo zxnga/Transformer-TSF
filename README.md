@@ -72,12 +72,10 @@ Transformer-TSF
 │   │   ├── lstm.py (simple lstm model to use as comparison)
 │   ├── inference (to simplify running the mode in production)
 │   │   ├── data
-│   │   |   ├── data
-│   │   |   |   ├── buffer.py (buffers to store context, true values and predictions)
-│   │   |   |   ├── helper.py (helper to manage all the data needed by the model)
+│   │   |   ├── buffer.py (buffers to store context, true values and predictions)
+│   │   |   ├── helper.py (helper to manage all the data needed by the model)
 │   │   ├── monitor.py (loss monitoring via ensemble forecast uncertainty weighting)
 │   │   ├── wrapper.py (model wrapper for inference)
-│   │   └── ...
 │   ├── plotting.py
 │   ├── ts_transformer.py (functions to initilalize, train and test the model)
 │   ├── utils.py
