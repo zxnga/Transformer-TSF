@@ -80,6 +80,6 @@ Transformer-TSF
 │   ├── ts_transformer.py (functions to initilalize, train and test the model)
 │   ├── utils.py
 ├── README.md
-├── requiremetns.txt
+├── requirements.txt
 ├── train_example.ipynb
 ```
