@@ -70,7 +70,7 @@ Transformer-TSF
 ├── src (core codes)
 │   ├── compare
 │   │   ├── lstm.py (simple lstm model to use as comparison)
-│   ├── inference (classic RL algorithms)
+│   ├── inference (to simplify running the mode in production)
 │   │   ├── data
 │   │   |   ├── data
 │   │   |   |   ├── buffer.py (buffers to store context, true values and predictions)
