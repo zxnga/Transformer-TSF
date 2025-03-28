@@ -87,7 +87,7 @@ class TFWrapper:
 
     @property
     def context_length(self):
-        return self.data_handler.context_buffer.context_length
+        return self.data_handler.context_length
 
     @property
     def full_context_length(self):
@@ -95,6 +95,10 @@ class TFWrapper:
 
     @property
     def context(self):
+        return self.data_handler.context_buffer.context[-48:]
+
+    @property
+    def full_context(self):
         return self.data_handler.context_buffer.context
 
     @property
@@ -111,7 +115,7 @@ class TFWrapper:
 
     def reset_buffers(self):
         self.data_handler = TFDataHandler(
-            self.transformer.config,self.freq,
+            self.transformer.config, self.freq,
             self.data_transformation, self.loss_window
         )
         self.inference_helper = TFInferenceHelper(
