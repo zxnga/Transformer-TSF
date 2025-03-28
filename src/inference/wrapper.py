@@ -95,7 +95,7 @@ class TFWrapper:
 
     @property
     def context(self):
-        return self.data_handler.context_buffer.context[-48:]
+        return self.data_handler.context_buffer.context[-self.context_length:]
 
     @property
     def full_context(self):
