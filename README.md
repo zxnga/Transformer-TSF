@@ -73,7 +73,7 @@ Transformer-TSF
 │   ├── loss_monitoring.ipynb
 │   ├── train_test.ipynb
 ├── src (core codes)
-│   ├── inference (to simplify running the mode in production)
+│   ├── inference (to simplify running the model in production)
 │   │   ├── data
 │   │   |   ├── buffer.py (buffers to store context, true values and predictions)
 │   │   |   ├── helper.py (helper to manage all the data needed by the model)
@@ -87,5 +87,4 @@ Transformer-TSF
 │   ├── utils.py
 ├── README.md
 ├── requirements.txt
-├── train_example.ipynb
 ```
