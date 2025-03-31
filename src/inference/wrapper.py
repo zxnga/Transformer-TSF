@@ -30,6 +30,53 @@ class TFInferenceHelper:
             self.device = model.device
         print(self.model.device)
 
+    def _get_hidden_representations_from_dataloader(self, data_loader):
+        latent_representations = []
+        encoder = self.model.get_encoder()
+        
+        for batch in data_loader:
+            past_values = batch["past_values"].to(self.device)
+            past_time_features = batch["past_time_features"].to(self.device)
+            past_observed_mask = batch["past_observed_mask"].to(self.device)
+            
+            static_cat = (
+                batch["static_categorical_features"].to(self.device)
+                if self.model.config.num_static_categorical_features > 0
+                else None
+            )
+            static_real = (
+                batch["static_real_features"].to(self.device)
+                if self.model.config.num_static_real_features > 0
+                else None
+            )
+            
+            # Create the unified transformer inputs
+            transformer_inputs, loc, scale, static_feat = self.model.create_network_inputs(
+                past_values=past_values,
+                past_time_features=past_time_features,
+                past_observed_mask=past_observed_mask,
+                static_categorical_features=static_cat,
+                static_real_features=static_real,
+                future_values=None,      # We're not forecasting here so we
+                future_time_features=None, # don't catre about furure vals
+            )
+            
+            # The encoder takes only the first context_length steps.
+            enc_input = transformer_inputs[:, : self.model.config.context_length, ...]
+            
+            encoder_outputs = encoder(
+                inputs_embeds=enc_input,
+                output_hidden_states=True,
+                return_dict=True,
+            )
+            
+            # Extract the final hidden state (latent representation).
+            latent_rep = encoder_outputs.last_hidden_state
+            latent_representations.append(latent_rep.cpu().detach().numpy())
+            
+        # Stack or process latent_representations as needed
+        return np.vstack(latent_representations)
+
     def _prediction_from_dataloader(self, data_loader: IterableSlice):
         forecasts = []
         for batch in data_loader:
