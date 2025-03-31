@@ -30,7 +30,7 @@ class TFInferenceHelper:
             self.device = model.device
         print(self.model.device)
 
-    def _get_hidden_representations_from_dataloader(self, data_loader):
+    def _get_hidden_representations_from_dataloader(self, data_loader: IterableSlice):
         latent_representations = []
         encoder = self.model.get_encoder()
         
@@ -51,7 +51,7 @@ class TFInferenceHelper:
             )
             
             # Create the unified transformer inputs
-            transformer_inputs, loc, scale, static_feat = self.model.create_network_inputs(
+            transformer_inputs, _, _, _ = self.model.model.create_network_inputs(
                 past_values=past_values,
                 past_time_features=past_time_features,
                 past_observed_mask=past_observed_mask,
@@ -74,8 +74,8 @@ class TFInferenceHelper:
             latent_rep = encoder_outputs.last_hidden_state
             latent_representations.append(latent_rep.cpu().detach().numpy())
             
-        # Stack or process latent_representations as needed
         return np.vstack(latent_representations)
+        # return latent_representations
 
     def _prediction_from_dataloader(self, data_loader: IterableSlice):
         forecasts = []
