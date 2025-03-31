@@ -2,8 +2,10 @@
 
 This project implements time series forecasting using a Vanilla Transformer model, using HF's TimeSeriesTransformer.
 
-It contains inference helper classes to help managing the model in a production setting.
-It also enables the monitoring of the forecasting loss of the model to detect shifts in the underlying data distribution.
+What we provide:
+1. Inference helper classes to help managing the model in a production setting.
+2. Monitoring of the forecasting loss of the model to detect shifts in the underlying data distribution.
+3. Attention Classifier to map the distribution shift to a known different data profile using the latent space of the Transformer.
 
 ## Table of Contents
 
@@ -71,14 +73,15 @@ Transformer-TSF
 │   ├── loss_monitoring.ipynb
 │   ├── train_test.ipynb
 ├── src (core codes)
-│   ├── compare
-│   │   ├── lstm.py (simple lstm model to use as comparison)
 │   ├── inference (to simplify running the mode in production)
 │   │   ├── data
 │   │   |   ├── buffer.py (buffers to store context, true values and predictions)
 │   │   |   ├── helper.py (helper to manage all the data needed by the model)
 │   │   ├── monitor.py (loss monitoring via ensemble forecast uncertainty weighting)
 │   │   ├── wrapper.py (model wrapper for inference)
+│   ├── networks
+│   │   ├── classifier.py (Attention Classifier to be used from the Transfomer's latent space)
+│   │   ├── lstm.py (simple lstm model to use as comparison)
 │   ├── plotting.py
 │   ├── ts_transformer.py (functions to initilalize, train and test the model)
 │   ├── utils.py
