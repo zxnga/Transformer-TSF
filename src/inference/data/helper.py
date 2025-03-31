@@ -45,7 +45,7 @@ class TFDataHandler:
         self,
         config: PretrainedConfig,
         freq: str,
-        transformation: Transformation = None,
+        transformation: Optional[Transformation] = None,
         loss_window: int = 0,
     ):
         self.config = config
@@ -234,7 +234,7 @@ class TFDataHandler:
         self,
         batch_size: int = 1, # at inference only one row
         item_id: str = 'T0'
-    ):
+    ) -> pd.DataFrame:
         infer_loader = self._create_inference_dataloader(
             data=self._get_inference_df(item_id),
             batch_size=batch_size)
@@ -245,11 +245,11 @@ class TFDataHandler:
     def update_prediction_buffer(self, values: np.ndarray, uncertainties: np.ndarray):
         self.pred_buffer.update(values, uncertainties)
 
-    def get_past_points_predictions(self):
+    def get_past_points_predictions(self) -> Tuple[int, np.ndarray, np.ndarray]:
         if self.pred_buffer is None:
             raise NotImplementedError('use loss window > 0')
         else:
             return self.pred_buffer.get_sliding_window_predictions()
 
-    def get_past_true_points(self):
+    def get_past_true_points(self) -> np.ndarray:
         return self.context_buffer.get_true_window()

@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Dict, List
+from typing import NamedTuple, Optional, Dict, List, Tuple
 
 import numpy as np
 import datetime
@@ -156,7 +156,7 @@ class TSLossBuffer(TSBuffer):
         self.new_vals += 1
         super().update(value, dynamic_real_features)
 
-    def get_true_window(self):
+    def get_true_window(self) -> np.ndarray:
         # to get true window we have to keep a counter to avoid returning initial context which are not part of the values we predicted
         if self.new_vals == 0:
             return np.empty(0)
@@ -231,7 +231,7 @@ class CircularHorizonPredictionBuffer:
             self.pred_buffer[idx].append(pred)
             self.uncert_buffer[idx].append(uncert)
 
-    def get_sliding_window_predictions(self):
+    def get_sliding_window_predictions(self) -> Tuple[int, np.ndarray, np.ndarray]:
         """
         Retrieves the predictions (and uncertainties) for the last `loss_window` true time steps.
         For each true time step t in the window, the corresponding buffer slot is determined as t % buffer_size.
