@@ -28,7 +28,7 @@ The model expects the dataset to be structured as follows:
    - array with shape equal to (number of features, target length)
 - `item_id`: Identifier for each time series item.
 
-Ensure your dataset aligns with this structure for optimal performance.
+Ensure your dataset aligns with this structure.
 
 ## Installation
 
