@@ -75,7 +75,6 @@ class TFInferenceHelper:
             latent_representations.append(latent_rep.cpu().detach().numpy())
             
         return np.vstack(latent_representations)
-        # return latent_representations
 
     def _prediction_from_dataloader(self, data_loader: IterableSlice):
         forecasts = []
