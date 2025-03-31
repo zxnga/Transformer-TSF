@@ -215,6 +215,7 @@ def create_train_dataloader(
         num_batches_per_epoch=num_batches_per_epoch,
     )
 
+
 def create_instance_splitter(
     config: PretrainedConfig,
     mode: str,
@@ -222,8 +223,6 @@ def create_instance_splitter(
     train_sampler: Optional[InstanceSampler] = None,
     validation_sampler: Optional[InstanceSampler] = None,
 ) -> Transformation:
-    # add systematic mode to get all combin tion of time series values
-    # needed for latent space classification
     assert mode in ["train", "validation", "test", "systematic"]
 
     instance_sampler = {
