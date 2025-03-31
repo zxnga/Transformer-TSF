@@ -9,6 +9,7 @@ import os
 import datetime
 import numpy as np
 from sklearn.model_selection import train_test_split
+from pydantic import Field
 
 from transformers import (
     PretrainedConfig,
@@ -53,6 +54,23 @@ from gluonts.transform import (
 
 from .utils import transform_start_field
 
+class SlidingWindowSampler(InstanceSampler):
+    past_length: int = Field(..., description="Number of past time steps (context + lags)")
+    future_length: int = Field(..., description="Number of future time steps")
+    step: int = Field(1, description="Sliding window step size")
+
+    def __call__(self, ts: np.ndarray) -> np.ndarray:
+        """
+        Given a time series array (e.g. from the target field "values"),
+        return all valid start indices for a window of length:
+            past_length + future_length.
+        """
+        window_length = self.past_length + self.future_length
+        T = ts.shape[0]
+        if T < window_length:
+            return np.array([], dtype=int)
+        start_max = T - window_length + 1
+        return np.arange(0, start_max, self.step)
 
 def create_transformation(freq: str, config: PretrainedConfig) -> Transformation:
     remove_field_names = []
@@ -152,6 +170,8 @@ def create_train_dataloader(
     data,
     batch_size: int,
     num_batches_per_epoch: int,
+    mode: str = 'train',
+    step: int = 1,
     shuffle_buffer_length: Optional[int] = None,
     cache_data: bool = True,
     **kwargs,
@@ -164,30 +184,24 @@ def create_train_dataloader(
     ]
     if config.num_static_categorical_features > 0:
         PREDICTION_INPUT_NAMES.append("static_categorical_features")
-
     if config.num_static_real_features > 0:
         PREDICTION_INPUT_NAMES.append("static_real_features")
-
     TRAINING_INPUT_NAMES = PREDICTION_INPUT_NAMES + [
         "future_values",
         "future_observed_mask",
     ]
 
-    #print('config', config)
-
     transformation = create_transformation(freq, config)
-    # print('transformation', transformation)
     transformed_data = transformation.apply(data, is_train=True)
-    # print('transformed_data', transformed_data)
     
     if cache_data:
         transformed_data = Cached(transformed_data)
 
     # we initialize a Training instance
-    instance_splitter = create_instance_splitter(config, "train")
+    instance_splitter = create_instance_splitter(config, mode, step)
 
     # the instance splitter will sample a window of
-    # context length + lags + prediction length (from the 366 possible transformed time series)
+    # context length + lags + prediction length (from all the possible transformed time series)
     # randomly from within the target time series and return an iterator.
     stream = Cyclic(transformed_data).stream()
     training_instances = instance_splitter.apply(stream)
@@ -201,14 +215,16 @@ def create_train_dataloader(
         num_batches_per_epoch=num_batches_per_epoch,
     )
 
-
 def create_instance_splitter(
     config: PretrainedConfig,
     mode: str,
+    step: int = 1,
     train_sampler: Optional[InstanceSampler] = None,
     validation_sampler: Optional[InstanceSampler] = None,
 ) -> Transformation:
-    assert mode in ["train", "validation", "test"]
+    # add systematic mode to get all combin tion of time series values
+    # needed for latent space classification
+    assert mode in ["train", "validation", "test", "systematic"]
 
     instance_sampler = {
         "train": train_sampler
@@ -217,7 +233,12 @@ def create_instance_splitter(
         ),
         "validation": validation_sampler
         or ValidationSplitSampler(min_future=config.prediction_length),
-        "test": TestSplitSampler()
+        "test": TestSplitSampler(),
+        "systematic": SlidingWindowSampler(
+            past_length=config.context_length + max(config.lags_sequence),
+            future_length=config.prediction_length,
+            step=step,
+        )
     }[mode]
 
     return InstanceSplitter(
@@ -336,7 +357,8 @@ def setup_training(
 
     return transformer, train_dataloader
 
-def setup_testing_eval(test_df: pd.DataFrame):
+#TODO: modify constructor add config + frq
+def setup_testing_data(test_df: pd.DataFrame):
     test_data = Dataset.from_pandas(test_df, preserve_index=True)
     test_data.set_transform(partial(transform_start_field, freq=freq))
 
