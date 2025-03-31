@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Callable, List
+from typing import Optional, Callable, List
 
 import numpy as np
 
@@ -35,7 +35,8 @@ class EnsembleForecaster:
         predictions_list: List[np.ndarray],
         uncertainties_list: List[np.ndarray],
         true_values: np.ndarray,
-        loss_fn: Callable=None):
+        loss_fn: Optional[Callable] = None
+    ) -> Tuple[np.ndarray, float]:
         """
         Computes ensemble predictions and loss over a series of time steps,
         accommodating a variable number of predictions per time step.
