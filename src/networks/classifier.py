@@ -1,3 +1,5 @@
+from typing import Optional, List
+
 import torch
 import torch.nn as nn
 
@@ -5,7 +7,7 @@ class AttentionPooling(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dims: list = None,
+        hidden_dims: Optional[List[int]] = None,
         activation=nn.Tanh,
         dropout: float = 0.0,
     ):
@@ -49,7 +51,7 @@ class Classifier(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dims: list = None,
+        hidden_dims: Optional[List[int]] = None,
         num_classes: int = 1,
         activation=nn.ReLU,
         dropout: float = 0.0,
@@ -85,8 +87,8 @@ class RepresentationClassifier(nn.Module):
     def __init__(
         self,
         encoder_hidden_size: int,
-        attn_hidden_dims: list = None,
-        classifier_hidden_dims: list = None,
+        attn_hidden_dims: Optional[List[int]] = None,
+        classifier_hidden_dims: Optional[List[int]] = None,
         num_classes: int = 3,
         attn_activation=nn.Tanh,
         classifier_activation=nn.ReLU,
@@ -129,5 +131,5 @@ class RepresentationClassifier(nn.Module):
             logits: Tensor of shape (batch_size, num_classes)
         """
         pooled = self.attention_pooling(x)  # Aggregated representation (batch_size, encoder_hidden_size)
-        logits = self.classifier(pooled)      # Classification logits
+        logits = self.classifier(pooled)      # logits
         return logits
