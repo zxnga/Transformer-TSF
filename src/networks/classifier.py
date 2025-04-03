@@ -131,7 +131,7 @@ class RepresentationClassifier(nn.Module):
             logits: Tensor of shape (batch_size, num_classes)
         """
         pooled = self.attention_pooling(x)  # Aggregated representation (batch_size, encoder_hidden_size)
-        logits = self.classifier(pooled)      # logits
+        logits = self.classifier(pooled)    # logits
         return logits
 
 def train_classifier(model, classifier, train_loader, optimizer, criterion, device, num_epochs, valid_loader=None):
@@ -165,7 +165,7 @@ def train_classifier(model, classifier, train_loader, optimizer, criterion, devi
         total_loss = 0.0
         total_samples = 0
         
-        # trainig loo
+        # trainig loop
         for batch in train_loader:
             latent_rep, labels = get_latents_and_labels_from_batch(batch, model, device)
             labels = labels[:, 0]  # using the first static feature as the label
@@ -238,8 +238,7 @@ def get_latents_and_labels_from_dataloader(model, data_loader, device):
         past_time_features = batch["past_time_features"].to(device)
         past_observed_mask = batch["past_observed_mask"].to(device)
         
-        # Extract the true labels from static_categorical_features.
-        # (Assuming these represent your ground truth class labels.)
+        # Extract the true labels from static_categorical_features
         static_cat = None
         if model.config.num_static_categorical_features > 0 and "static_categorical_features" in batch:
             static_cat = batch["static_categorical_features"].to(device)
@@ -248,8 +247,7 @@ def get_latents_and_labels_from_dataloader(model, data_loader, device):
         if model.config.num_static_real_features > 0 and "static_real_features" in batch:
             static_real = batch["static_real_features"].to(device)
         
-        # Create unified transformer inputs.
-        # Notice we use model.model.create_network_inputs because the wrapper doesn't expose it directly.
+        # Create unified transformer inputs
         transformer_inputs, _, _, _ = model.model.create_network_inputs(
             past_values=past_values,
             past_time_features=past_time_features,
@@ -270,11 +268,11 @@ def get_latents_and_labels_from_dataloader(model, data_loader, device):
             return_dict=True,
         )
         
-        # Extract the final hidden state (latent representation) from the encoder.
+        # Extract the final hidden latent representation from the encoder.
         latent_rep = encoder_outputs.last_hidden_state  # shape: (batch_size, context_length, hidden_size)
         latent_representations.append(latent_rep.cpu().detach().numpy())
         
-        # Also collect the true labels from static_categorical_features.
+        # Also collect the true labels from static_categorical_features
         if static_cat is not None:
             labels.append(static_cat.cpu().detach().numpy())
     
