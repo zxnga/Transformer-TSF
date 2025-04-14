@@ -116,7 +116,7 @@ class TFWrapper:
         freq: str,
         data_transformation: Transformation=None,
         inference_config: Dict[str, Any] = {},
-        loss_window=0
+        loss_window: int = 0, # size of lookback window in loss monitoring
     ):
         self.transformer = trained_model
         self.model_config = trained_model.config
@@ -130,6 +130,8 @@ class TFWrapper:
         self.reset_buffers()
 
         self.last_action_ingest = None
+
+        self.loss_history = []
 
     @property
     def context_length(self):
@@ -222,6 +224,14 @@ class TFWrapper:
 
     def get_last_true_points(self):
         return self.data_handler.get_past_true_points()
+
+    def compute_ensemble_loss(self):
+        #TODO add loss monitor if loss window > 0 and add a buffer/list for losses history
+        raise NotImplementedError
+        # last_preds = self.get_last_points_predictions()
+        # last_true = self.get_last_true_points()
+        # indices, preds, uncert = zip(*last_preds)
+        # _, loss = loss_monitor.ensemble_loss(preds, uncert, last_true)
 
     @staticmethod
     def _maybe_cast_type(array: Optional[Union[List[float], np.ndarray]]) -> np.ndarray:
