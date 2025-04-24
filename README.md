@@ -86,7 +86,6 @@ Transformer-TSF
 │   ├── networks
 │   │   ├── classifier.py (Classifier to be used from the Transfomer's latent space)
 │   │   ├── projection.py (Networks to transform the 2D Encoders's latent space to 1D)
-│   │   ├── lstm.py (simple lstm model to use as comparison)
 │   ├── plotting.py
 │   ├── ts_transformer.py (functions to initilalize, train and test the model)
 │   ├── utils.py
