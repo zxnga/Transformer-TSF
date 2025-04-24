@@ -3,50 +3,6 @@ from typing import Optional, List
 import torch
 import torch.nn as nn
 
-class AttentionPooling(nn.Module):
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_dims: Optional[List[int]] = None,
-        activation=nn.Tanh,
-        dropout: float = 0.0,
-    ):
-        """
-        Args:
-            input_dim (int): Dimensionality of each time step (typically the encoder's hidden_size).
-            hidden_dims (list): List of integers specifying the hidden layer sizes for the attention MLP.
-                                If None, defaults to a single hidden layer with size equal to input_dim.
-            activation: Activation function class to use (e.g., nn.Tanh, nn.ReLU, nn.GELU).
-            dropout (float): Dropout rate applied after each hidden layer (default is 0.0).
-        """
-        super().__init__()
-        if hidden_dims is None:
-            hidden_dims = [input_dim]  # Default: one hidden layer of size input_dim
-
-        layers = []
-        current_dim = input_dim
-        for h in hidden_dims:
-            layers.append(nn.Linear(current_dim, h))
-            layers.append(activation())
-            if dropout > 0:
-                layers.append(nn.Dropout(dropout))
-            current_dim = h
-        # Final layer maps to 1 (score per time step)
-        layers.append(nn.Linear(current_dim, 1))
-        self.attention = nn.Sequential(*layers)
-
-    def forward(self, x):
-        """
-        Args:
-            x: Tensor of shape (batch_size, context_length, input_dim)
-        Returns:
-            pooled: Tensor of shape (batch_size, input_dim) after weighted pooling over time.
-        """
-        attn_scores = self.attention(x)             # (batch_size, context_length, 1)
-        attn_weights = torch.softmax(attn_scores, dim=1)  # Normalize over time steps
-        pooled = (x * attn_weights).sum(dim=1)        # (batch_size, input_dim)
-        return pooled
-
 class Classifier(nn.Module):
     def __init__(
         self,
@@ -87,12 +43,11 @@ class RepresentationClassifier(nn.Module):
     def __init__(
         self,
         encoder_hidden_size: int,
-        attn_hidden_dims: Optional[List[int]] = None,
+        projection_network: nn.Module,
+        projection_network_kwargs: Dict[str,Any],
+        num_classes: int,
         classifier_hidden_dims: Optional[List[int]] = None,
-        num_classes: int = 3,
-        attn_activation=nn.Tanh,
         classifier_activation=nn.ReLU,
-        attn_dropout: float = 0.0,
         classifier_dropout: float = 0.0,
     ):
         """
@@ -109,12 +64,9 @@ class RepresentationClassifier(nn.Module):
             classifier_dropout (float): Dropout rate for the classifier.
         """
         super().__init__()
-        self.attention_pooling = AttentionPooling(
-            input_dim=encoder_hidden_size,
-            hidden_dims=attn_hidden_dims,
-            activation=attn_activation,
-            dropout=attn_dropout,
-        )
+
+        self.projection = projection_network(**projection_network_kwargs)
+        
         self.classifier = Classifier(
             input_dim=encoder_hidden_size,
             hidden_dims=classifier_hidden_dims,
@@ -130,7 +82,7 @@ class RepresentationClassifier(nn.Module):
         Returns:
             logits: Tensor of shape (batch_size, num_classes)
         """
-        pooled = self.attention_pooling(x)  # Aggregated representation (batch_size, encoder_hidden_size)
+        pooled = self.projection(x)  # Aggregated representation (batch_size, encoder_hidden_size)
         logits = self.classifier(pooled)    # logits
         return logits
 
